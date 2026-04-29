@@ -1,0 +1,523 @@
+
+<h2 class="sr-only">AtliQ Grands hospitality analysis dashboard covering revenue, occupancy, cancellations, and property performance across May–July</h2>
+
+<style>
+  :root {
+    --amber: #EF9F27;
+    --amber-light: #FAC775;
+    --amber-dark: #BA7517;
+    --amber-deep: #854F0B;
+    --surface: var(--color-background-secondary);
+    --card: var(--color-background-primary);
+    --border: var(--color-border-tertiary);
+    --text: var(--color-text-primary);
+    --muted: var(--color-text-secondary);
+    --hint: var(--color-text-tertiary);
+    --radius: var(--border-radius-lg);
+    --radius-sm: var(--border-radius-md);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body, .dash { font-family: var(--font-sans); }
+  .dash { padding: 0; }
+
+  .dash-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 0 0.75rem;
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 1rem;
+  }
+  .dash-title { font-size: 18px; font-weight: 500; color: var(--text); }
+  .dash-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .badge {
+    font-size: 11px; padding: 3px 10px; border-radius: var(--radius-sm);
+    background: #FAC775; color: #633806; font-weight: 500;
+  }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .tab {
+    font-size: 12px; padding: 5px 14px; border-radius: var(--radius-sm);
+    border: 0.5px solid var(--border); background: var(--card);
+    color: var(--muted); cursor: pointer; transition: all 0.15s;
+  }
+  .tab.active { background: #EF9F27; color: #412402; border-color: #EF9F27; font-weight: 500; }
+  .tab:hover:not(.active) { background: var(--surface); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .kpi {
+    background: var(--surface); border-radius: var(--radius-sm); padding: 12px 14px;
+  }
+  .kpi-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .kpi-value { font-size: 22px; font-weight: 500; color: var(--text); line-height: 1.1; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .kpi-amber .kpi-value { color: #BA7517; }
+  .kpi-warn .kpi-value { color: #A32D2D; }
+  .kpi-green .kpi-value { color: #3B6D11; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+  @media (max-width: 520px) { .two-col, .three-col { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.25rem;
+  }
+  .card-title { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .bar-label { font-size: 12px; color: var(--text); min-width: 100px; }
+  .bar-track { flex: 1; height: 8px; background: var(--surface); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: #EF9F27; transition: width 0.6s ease; }
+  .bar-fill.blue { background: #378ADD; }
+  .bar-fill.red { background: #E24B4A; }
+  .bar-fill.green { background: #639922; }
+  .bar-fill.purple { background: #7F77DD; }
+  .bar-fill.teal { background: #1D9E75; }
+  .bar-val { font-size: 12px; color: var(--muted); min-width: 42px; text-align: right; }
+
+  .prop-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .prop-table th { color: var(--muted); font-weight: 500; text-align: left; padding: 6px 8px; border-bottom: 0.5px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .prop-table td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  .prop-table tr:last-child td { border-bottom: none; }
+  .prop-table tr:hover td { background: var(--surface); }
+  .rating-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; background: #EF9F27; }
+  .rating-dot.bad { background: #E24B4A; }
+  .rating-dot.ok { background: #639922; }
+
+  .insight-list { list-style: none; }
+  .insight-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 0.5px solid var(--border);
+  }
+  .insight-item:last-child { border-bottom: none; }
+  .insight-icon {
+    width: 24px; height: 24px; border-radius: var(--radius-sm); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500;
+  }
+  .insight-icon.warn { background: #FAECE7; color: #993C1D; }
+  .insight-icon.info { background: #E6F1FB; color: #185FA5; }
+  .insight-icon.ok { background: #EAF3DE; color: #3B6D11; }
+  .insight-icon.amber { background: #FAEEDA; color: #633806; }
+  .insight-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .insight-text strong { font-weight: 500; color: var(--text); }
+
+  .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: 4px; }
+  .pill.amber { background: #FAEEDA; color: #633806; }
+  .pill.red { background: #FCEBEB; color: #A32D2D; }
+  .pill.green { background: #EAF3DE; color: #3B6D11; }
+  .pill.blue { background: #E6F1FB; color: #185FA5; }
+
+  .vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .vs-card {
+    border: 0.5px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px; background: var(--surface);
+  }
+  .vs-title { font-size: 11px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .vs-num { font-size: 20px; font-weight: 500; color: var(--text); }
+  .vs-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .month-toggle { display: flex; gap: 6px; margin-bottom: 12px; }
+  .month-btn {
+    font-size: 11px; padding: 4px 12px; border-radius: var(--radius-sm);
+    border: 0.5px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer;
+  }
+  .month-btn.active { background: #EF9F27; color: #412402; border-color: #EF9F27; font-weight: 500; }
+
+  .chart-wrap { position: relative; width: 100%; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; font-size: 11px; color: var(--muted); }
+  .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+</style>
+
+<div class="dash">
+  <div class="dash-header">
+    <div>
+      <div class="dash-title">AtliQ Grands — Hospitality Intelligence</div>
+      <div class="dash-subtitle">May – July 2024 · All Cities · All Properties</div>
+    </div>
+    <span class="badge">Live Insights</span>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi kpi-amber"><div class="kpi-label">Total Revenue</div><div class="kpi-value">₹1.71B</div><div class="kpi-sub">May–July combined</div></div>
+    <div class="kpi"><div class="kpi-label">Occupancy</div><div class="kpi-value">57.87%</div><div class="kpi-sub">Avg all properties</div></div>
+    <div class="kpi kpi-warn"><div class="kpi-label">Cancellation</div><div class="kpi-value">24.83%</div><div class="kpi-sub">Consistent ~25%</div></div>
+    <div class="kpi"><div class="kpi-label">Total Bookings</div><div class="kpi-value">135K</div><div class="kpi-sub">7 properties</div></div>
+    <div class="kpi kpi-warn"><div class="kpi-label">Unutilized Capacity</div><div class="kpi-value">42.13%</div><div class="kpi-sub">Revenue leakage</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Rating</div><div class="kpi-value">3.62</div><div class="kpi-sub">Out of 5.0</div></div>
+  </div>
+
+  <div class="tabs" id="mainTabs">
+    <div class="tab active" onclick="switchTab('overview')">Overview</div>
+    <div class="tab" onclick="switchTab('properties')">Properties</div>
+    <div class="tab" onclick="switchTab('cities')">Cities</div>
+    <div class="tab" onclick="switchTab('insights')">Key Insights</div>
+    <div class="tab" onclick="switchTab('channels')">Channels</div>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Revenue by city</div>
+        <div class="bar-row"><span class="bar-label">Mumbai</span><div class="bar-track"><div class="bar-fill" style="width:39.13%"></div></div><span class="bar-val">39.13%</span></div>
+        <div class="bar-row"><span class="bar-label">Bangalore</span><div class="bar-track"><div class="bar-fill" style="width:24.60%"></div></div><span class="bar-val">24.60%</span></div>
+        <div class="bar-row"><span class="bar-label">Hyderabad</span><div class="bar-track"><div class="bar-fill" style="width:19.03%"></div></div><span class="bar-val">19.03%</span></div>
+        <div class="bar-row"><span class="bar-label">Delhi</span><div class="bar-track"><div class="bar-fill" style="width:17.23%"></div></div><span class="bar-val">17.23%</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Revenue by room class</div>
+        <div class="bar-row"><span class="bar-label">Elite</span><div class="bar-track"><div class="bar-fill blue" style="width:32.79%"></div></div><span class="bar-val">32.79%</span></div>
+        <div class="bar-row"><span class="bar-label">Premium</span><div class="bar-track"><div class="bar-fill blue" style="width:27.05%"></div></div><span class="bar-val">27.05%</span></div>
+        <div class="bar-row"><span class="bar-label">Presidential</span><div class="bar-track"><div class="bar-fill blue" style="width:22.05%"></div></div><span class="bar-val">22.05%</span></div>
+        <div class="bar-row"><span class="bar-label">Standard</span><div class="bar-track"><div class="bar-fill blue" style="width:18.12%"></div></div><span class="bar-val">18.12%</span></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Weekday vs weekend performance</div>
+        <div class="vs-grid">
+          <div class="vs-card">
+            <div class="vs-title">Weekdays</div>
+            <div class="vs-num">₹1,070M</div>
+            <div class="vs-sub">84K bookings</div>
+            <div class="vs-sub" style="margin-top:6px;">Occupancy <strong>51.34%</strong></div>
+            <div class="vs-sub">Rating <strong>3.62</strong></div>
+          </div>
+          <div class="vs-card" style="border-color:#EF9F27;">
+            <div class="vs-title">Weekends</div>
+            <div class="vs-num" style="color:#BA7517;">₹639M</div>
+            <div class="vs-sub">50K bookings</div>
+            <div class="vs-sub" style="margin-top:6px;">Occupancy <strong style="color:#BA7517;">73.58%</strong></div>
+            <div class="vs-sub">Rating <strong>3.61</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Booking status breakdown</div>
+        <div class="bar-row"><span class="bar-label">Checked Out</span><div class="bar-track"><div class="bar-fill green" style="width:82.46%"></div></div><span class="bar-val">82.46%</span></div>
+        <div class="bar-row"><span class="bar-label">Cancelled</span><div class="bar-track"><div class="bar-fill red" style="width:11.66%"></div></div><span class="bar-val">11.66%</span></div>
+        <div class="bar-row"><span class="bar-label">No Show</span><div class="bar-track"><div class="bar-fill red" style="width:5.88%"></div></div><span class="bar-val">5.88%</span></div>
+        <div style="margin-top:12px; padding:8px 10px; background:var(--surface); border-radius:var(--radius-sm);">
+          <div style="font-size:12px; color:var(--muted);">Combined revenue leakage from cancellations + no-shows: <strong style="color:#A32D2D;">17.54%</strong> of all bookings lost</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Monthly revenue trend — all cities (₹ Million)</div>
+      <div class="legend-row">
+        <span><span class="legend-dot" style="background:#EF9F27;"></span>Mumbai</span>
+        <span><span class="legend-dot" style="background:#378ADD;"></span>Bangalore</span>
+        <span><span class="legend-dot" style="background:#1D9E75;"></span>Hyderabad</span>
+        <span><span class="legend-dot" style="background:#E24B4A;"></span>Delhi</span>
+      </div>
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="revTrendChart" role="img" aria-label="Monthly revenue trend for Mumbai, Bangalore, Hyderabad, and Delhi across May, June, July">Revenue: Mumbai 227M/217M/225M, Bangalore 144M/136M/140M, Hyderabad 111M/105M/109M, Delhi 100M/96M/99M.</canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROPERTIES TAB -->
+  <div class="tab-panel" id="tab-properties">
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-title">All properties — key metrics</div>
+      <div style="overflow-x:auto;">
+        <table class="prop-table">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Category</th>
+              <th>Revenue</th>
+              <th>Bookings</th>
+              <th>Occupancy</th>
+              <th>Cancellation</th>
+              <th>Rating</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Atliq Exotica</strong></td><td><span class="pill amber">Luxury</span></td><td>₹320M</td><td>23,441</td><td>57.26%</td><td>24.37%</td><td><span class="rating-dot ok"></span>3.62</td></tr>
+            <tr><td><strong>Atliq Palace</strong></td><td><span class="pill blue">Business</span></td><td>₹304M</td><td>23,625</td><td>60.00%</td><td>25.18%</td><td><span class="rating-dot ok"></span>3.75</td></tr>
+            <tr><td><strong>Atliq City</strong></td><td><span class="pill blue">Business</span></td><td>₹286M</td><td>23,323</td><td>59.51%</td><td>24.92%</td><td><span class="rating-dot ok"></span>3.69</td></tr>
+            <tr><td><strong>Atliq Blu</strong></td><td><span class="pill amber">Luxury</span></td><td>₹261M</td><td>21,795</td><td>62.02%</td><td>24.65%</td><td><span class="rating-dot ok"></span>3.96</td></tr>
+            <tr><td><strong>Atliq Bay</strong></td><td><span class="pill amber">Luxury</span></td><td>₹260M</td><td>21,389</td><td>58.41%</td><td>24.84%</td><td><span class="rating-dot ok"></span>3.71</td></tr>
+            <tr><td><strong>Atliq Grands</strong></td><td><span class="pill amber">Luxury</span></td><td>₹212M</td><td>17,035</td><td>52.60%</td><td>25.08%</td><td><span class="rating-dot"></span>3.10</td></tr>
+            <tr style="background:var(--color-background-danger, rgba(226,75,74,0.05));"><td><strong>Atliq Seasons</strong> <span class="pill red">concern</span></td><td><span class="pill blue">Business</span></td><td>₹66M</td><td>3,982</td><td>44.62%</td><td>24.79%</td><td><span class="rating-dot bad"></span>2.29</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Revenue contribution % by property</div>
+      <div class="bar-row"><span class="bar-label">Atliq Exotica</span><div class="bar-track"><div class="bar-fill" style="width:18.75%"></div></div><span class="bar-val">18.75%</span></div>
+      <div class="bar-row"><span class="bar-label">Atliq Palace</span><div class="bar-track"><div class="bar-fill" style="width:17.80%"></div></div><span class="bar-val">17.80%</span></div>
+      <div class="bar-row"><span class="bar-label">Atliq City</span><div class="bar-track"><div class="bar-fill" style="width:16.73%"></div></div><span class="bar-val">16.73%</span></div>
+      <div class="bar-row"><span class="bar-label">Atliq Blu</span><div class="bar-track"><div class="bar-fill" style="width:15.27%"></div></div><span class="bar-val">15.27%</span></div>
+      <div class="bar-row"><span class="bar-label">Atliq Bay</span><div class="bar-track"><div class="bar-fill" style="width:15.22%"></div></div><span class="bar-val">15.22%</span></div>
+      <div class="bar-row"><span class="bar-label">Atliq Grands</span><div class="bar-track"><div class="bar-fill" style="width:12.38%"></div></div><span class="bar-val">12.38%</span></div>
+      <div class="bar-row"><span class="bar-label">Atliq Seasons</span><div class="bar-track"><div class="bar-fill red" style="width:3.87%"></div></div><span class="bar-val">3.87%</span></div>
+    </div>
+  </div>
+
+  <!-- CITIES TAB -->
+  <div class="tab-panel" id="tab-cities">
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="kpi"><div class="kpi-label">Bangalore RPB</div><div class="kpi-value kpi-amber" style="font-size:18px;">₹13.1K</div><div class="kpi-sub">Per booking</div></div>
+      <div class="kpi"><div class="kpi-label">Delhi RPB</div><div class="kpi-value" style="font-size:18px;">₹12.2K</div><div class="kpi-sub">Per booking</div></div>
+      <div class="kpi"><div class="kpi-label">Hyderabad RPB</div><div class="kpi-value" style="font-size:18px;">₹9.3K</div><div class="kpi-sub">Per booking</div></div>
+      <div class="kpi kpi-amber"><div class="kpi-label">Mumbai RPB</div><div class="kpi-value" style="font-size:18px;">₹15.4K</div><div class="kpi-sub">Per booking</div></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Occupancy % by city</div>
+        <div class="chart-wrap" style="height:180px;">
+          <canvas id="occCityChart" role="img" aria-label="Occupancy percent by city for May, June, July">Delhi highest ~61%, Hyderabad ~58%, Mumbai ~58%, Bangalore ~56%.</canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cancellation % by city</div>
+        <div class="chart-wrap" style="height:180px;">
+          <canvas id="canCityChart" role="img" aria-label="Cancellation percent by city for May June July">All cities similar ~24-25%.</canvas>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">City performance scorecard</div>
+      <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:4px;">
+        <div style="padding:12px; border:0.5px solid var(--border); border-radius:var(--radius-sm);">
+          <div style="font-size:13px; font-weight:500; margin-bottom:6px;">Mumbai <span class="pill amber">Top revenue</span></div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.7;">Revenue share: <strong>39.13%</strong><br>Occupancy: <strong>57.55–58.42%</strong><br>Highest absolute revenue every month<br>Home to Atliq Seasons (problem child)</div>
+        </div>
+        <div style="padding:12px; border:0.5px solid var(--border); border-radius:var(--radius-sm);">
+          <div style="font-size:13px; font-weight:500; margin-bottom:6px;">Bangalore <span class="pill green">Efficient</span></div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.7;">Revenue share: <strong>24.60%</strong><br>Lowest occupancy (~56%) but 2nd revenue<br>Lowest cancellation rate<br>Highest revenue per booking: ₹13.1K</div>
+        </div>
+        <div style="padding:12px; border:0.5px solid var(--border); border-radius:var(--radius-sm);">
+          <div style="font-size:13px; font-weight:500; margin-bottom:6px;">Delhi <span class="pill red">Underperforming</span></div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.7;">Revenue share: <strong>17.23%</strong><br>Highest occupancy (~60%) but lowest revenue<br>Low revenue per booking: ₹12.2K<br>Overall weakest performance</div>
+        </div>
+        <div style="padding:12px; border:0.5px solid var(--border); border-radius:var(--radius-sm);">
+          <div style="font-size:13px; font-weight:500; margin-bottom:6px;">Hyderabad <span class="pill blue">Stable</span></div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.7;">Revenue share: <strong>19.03%</strong><br>Occupancy: <strong>57.57–58.97%</strong><br>Consistent performer, mid-range<br>Revenue per booking: ₹9.3K (lowest)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSIGHTS TAB -->
+  <div class="tab-panel" id="tab-insights">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Critical findings</div>
+        <ul class="insight-list">
+          <li class="insight-item">
+            <div class="insight-icon warn">!</div>
+            <div class="insight-text"><strong>June revenue dropped 4.8%</strong> — driven by bookings (-4.8%), occupancy (-1.6%) and unutilized capacity (+2.3%). Cancellation rates were stable, so it was a <em>demand problem</em>, not a retention problem.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon warn">!</div>
+            <div class="insight-text"><strong>Atliq Seasons is a critical failure.</strong> Rating 2.29, occupancy only 44.62%, 55.38% unutilized capacity. Operates only in Mumbai. Cancellations (24.79%) + no-shows (4.62%) compound the damage.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon warn">!</div>
+            <div class="insight-text"><strong>Week 3 occupancy dip across all months.</strong> Consistent pattern — mid-month demand weakness suggests seasonal/behavioral pattern not yet addressed by pricing strategy.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon warn">!</div>
+            <div class="insight-text"><strong>Week 32 collapse.</strong> Capacity dropped sharply, causing bookings and revenue to fall dramatically. Supply-side limitation in final week.</div>
+          </li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Positive signals</div>
+        <ul class="insight-list">
+          <li class="insight-item">
+            <div class="insight-icon ok">+</div>
+            <div class="insight-text"><strong>Weekend occupancy at 73.58%</strong> — 22 points above weekday. Weekend demand is strong. Dynamic pricing on weekends could significantly lift revenue.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon ok">+</div>
+            <div class="insight-text"><strong>Atliq Blu leads all properties in occupancy</strong> (62.02%) with a strong rating of 3.96. Best-performing asset overall — a model for others.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon ok">+</div>
+            <div class="insight-text"><strong>Bangalore is a revenue efficiency leader.</strong> Despite lowest occupancy, it generates 2nd highest revenue with lowest cancellation rate — high-value, committed guests.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon amber">~</div>
+            <div class="insight-text"><strong>Luxury category dominates at 61.61%</strong> of revenue. Business hotels underperform at 38.39%. Investment in luxury positioning yields measurable returns.</div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Revenue leakage analysis</div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:4px;">
+        <div style="text-align:center; padding:14px; background:var(--surface); border-radius:var(--radius-sm);">
+          <div style="font-size:24px; font-weight:500; color:#A32D2D;">11.66%</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:4px;">Cancellation rate</div>
+          <div style="font-size:11px; color:var(--muted);">~15.7K lost bookings</div>
+        </div>
+        <div style="text-align:center; padding:14px; background:var(--surface); border-radius:var(--radius-sm);">
+          <div style="font-size:24px; font-weight:500; color:#E24B4A;">5.88%</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:4px;">No-show rate</div>
+          <div style="font-size:11px; color:var(--muted);">~7.9K lost bookings</div>
+        </div>
+        <div style="text-align:center; padding:14px; background:var(--surface); border-radius:var(--radius-sm);">
+          <div style="font-size:24px; font-weight:500; color:#BA7517;">42.13%</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:4px;">Unutilized capacity</div>
+          <div style="font-size:11px; color:var(--muted);">~98K empty room-nights</div>
+        </div>
+      </div>
+      <div style="margin-top:12px; padding:10px 12px; background:var(--surface); border-radius:var(--radius-sm); font-size:12px; color:var(--muted); border-left:3px solid #EF9F27;">
+        Combined cancellations and no-shows = <strong>17.54%</strong> of total bookings vaporized. At ₹12.7K avg revenue per booking, that's roughly <strong>₹300M+ in preventable revenue loss</strong> across the 3-month period.
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANNELS TAB -->
+  <div class="tab-panel" id="tab-channels">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Booking source revenue share</div>
+        <div class="bar-row"><span class="bar-label">Unknown/Other</span><div class="bar-track"><div class="bar-fill" style="width:40.93%"></div></div><span class="bar-val">40.93%</span></div>
+        <div class="bar-row"><span class="bar-label">MakeYourTrip</span><div class="bar-track"><div class="bar-fill blue" style="width:19.95%"></div></div><span class="bar-val">19.95%</span></div>
+        <div class="bar-row"><span class="bar-label">LogTrip</span><div class="bar-track"><div class="bar-fill teal" style="width:10.98%"></div></div><span class="bar-val">10.98%</span></div>
+        <div class="bar-row"><span class="bar-label">Direct Online</span><div class="bar-track"><div class="bar-fill green" style="width:9.89%"></div></div><span class="bar-val">9.89%</span></div>
+        <div class="bar-row"><span class="bar-label">Tripster</span><div class="bar-track"><div class="bar-fill purple" style="width:7.20%"></div></div><span class="bar-val">7.20%</span></div>
+        <div class="bar-row"><span class="bar-label">Journey</span><div class="bar-track"><div class="bar-fill red" style="width:6.00%"></div></div><span class="bar-val">6.00%</span></div>
+        <div style="margin-top:12px; padding:8px 10px; background:#FAEEDA; border-radius:var(--radius-sm);">
+          <div style="font-size:12px; color:#633806;"><strong>40.93% revenue from unknown sources</strong> — biggest attribution gap. Identifying and optimizing this channel is the highest-leverage growth opportunity.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Channel strategy insights</div>
+        <ul class="insight-list">
+          <li class="insight-item">
+            <div class="insight-icon warn">!</div>
+            <div class="insight-text"><strong>40.93% from untracked sources.</strong> This is priority #1 for analytics investment — could be corporate accounts, walk-ins, or dark traffic from OTAs not properly tagged.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon info">2</div>
+            <div class="insight-text"><strong>MakeYourTrip is the only identified OTA leader</strong> at 19.95%. Strong negotiating position but also dependency risk — diversification recommended.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon ok">+</div>
+            <div class="insight-text"><strong>Direct online at 9.89%</strong> — growing this channel reduces OTA commission costs (typically 15–25%). Even 5% shift = significant margin improvement.</div>
+          </li>
+          <li class="insight-item">
+            <div class="insight-icon amber">~</div>
+            <div class="insight-text"><strong>Journey (6%) and Tripster (7.2%)</strong> are small contributors. Worth evaluating ROI on maintaining these partnerships vs. concentrating on top performers.</div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recommended actions</div>
+      <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px;">
+        <div style="padding:10px 12px; border:0.5px solid var(--border); border-radius:var(--radius-sm); border-left:3px solid #EF9F27;">
+          <div style="font-size:12px; font-weight:500; margin-bottom:4px;">Resolve attribution gap</div>
+          <div style="font-size:11px; color:var(--muted);">Implement UTM tracking + CRM tagging to identify the 40.93% unknown source. This is likely the largest hidden revenue stream.</div>
+        </div>
+        <div style="padding:10px 12px; border:0.5px solid var(--border); border-radius:var(--radius-sm); border-left:3px solid #378ADD;">
+          <div style="font-size:12px; font-weight:500; margin-bottom:4px;">Boost direct bookings</div>
+          <div style="font-size:11px; color:var(--muted);">Loyalty program + best-rate guarantee on owned channels. Every 1% shift from OTA to direct saves ~₹1.5M in commission fees.</div>
+        </div>
+        <div style="padding:10px 12px; border:0.5px solid var(--border); border-radius:var(--radius-sm); border-left:3px solid #A32D2D;">
+          <div style="font-size:12px; font-weight:500; margin-bottom:4px;">Fix cancellation leakage</div>
+          <div style="font-size:11px; color:var(--muted);">Strict no-show policy + pre-arrival check-in messages. 11.66% cancellation + 5.88% no-show = 17.54% booking waste.</div>
+        </div>
+        <div style="padding:10px 12px; border:0.5px solid var(--border); border-radius:var(--radius-sm); border-left:3px solid #3B6D11;">
+          <div style="font-size:12px; font-weight:500; margin-bottom:4px;">Fix Atliq Seasons urgently</div>
+          <div style="font-size:11px; color:var(--muted);">Rating 2.29 is unacceptable for a 5-star brand. Service audit + staff retraining + occupancy incentives needed immediately.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['overview','properties','cities','insights','channels'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+  if (name === 'cities' && !window.cityChartsDrawn) { drawCityCharts(); window.cityChartsDrawn = true; }
+}
+
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+const textColor = isDark ? '#aaa' : '#888';
+
+const months = ['May', 'June', 'July'];
+
+new Chart(document.getElementById('revTrendChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [
+      { label: 'Mumbai', data: [227, 217, 225], borderColor: '#EF9F27', backgroundColor: 'rgba(239,159,39,0.1)', tension: 0.3, fill: false, pointRadius: 4, borderWidth: 2 },
+      { label: 'Bangalore', data: [144, 136, 140], borderColor: '#378ADD', backgroundColor: 'rgba(55,138,221,0.1)', tension: 0.3, fill: false, pointRadius: 4, borderWidth: 2 },
+      { label: 'Hyderabad', data: [111, 105, 109], borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.1)', tension: 0.3, fill: false, pointRadius: 4, borderWidth: 2 },
+      { label: 'Delhi', data: [100, 96, 99], borderColor: '#E24B4A', backgroundColor: 'rgba(226,75,74,0.1)', tension: 0.3, fill: false, pointRadius: 4, borderWidth: 2 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } },
+      y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 }, callback: v => '₹' + v + 'M' } }
+    }
+  }
+});
+
+function drawCityCharts() {
+  new Chart(document.getElementById('occCityChart'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'Bangalore', data: [56.54, 55.42, 55.33], backgroundColor: '#378ADD' },
+        { label: 'Delhi', data: [61.02, 60.48, 60.13], backgroundColor: '#EF9F27' },
+        { label: 'Hyderabad', data: [58.97, 57.67, 57.57], backgroundColor: '#1D9E75' },
+        { label: 'Mumbai', data: [58.42, 57.68, 57.55], backgroundColor: '#E24B4A' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { boxWidth: 8, font: { size: 10 }, color: textColor } } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
+        y: { min: 50, max: 65, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, callback: v => v + '%' } }
+      }
+    }
+  });
+  new Chart(document.getElementById('canCityChart'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'Bangalore', data: [24.77, 25.12, 25.63], backgroundColor: '#378ADD' },
+        { label: 'Delhi', data: [25.10, 25.05, 24.99], backgroundColor: '#EF9F27' },
+        { label: 'Hyderabad', data: [24.49, 24.67, 24.90], backgroundColor: '#1D9E75' },
+        { label: 'Mumbai', data: [23.99, 25.24, 24.34], backgroundColor: '#E24B4A' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { boxWidth: 8, font: { size: 10 }, color: textColor } } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
+        y: { min: 23, max: 27, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, callback: v => v + '%' } }
+      }
+    }
+  });
+}
+</script>
